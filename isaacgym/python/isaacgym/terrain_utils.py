@@ -47,7 +47,7 @@ def random_uniform_terrain(terrain, min_height, max_height, step=1, downsampled_
     y_upsampled = np.linspace(0, terrain.length * terrain.horizontal_scale, terrain.length)
     z_upsampled = np.rint(f(y_upsampled, x_upsampled))
 
-    terrain.height_field_raw += z_upsampled.astype(np.int16)
+    terrain.height_field_raw += z_upsampled.astype(np.int3216)
     return terrain
 
 
@@ -357,4 +357,4 @@ class SubTerrain:
         self.horizontal_scale = horizontal_scale
         self.width = width
         self.length = length
-        self.height_field_raw = np.zeros((self.width, self.length), dtype=np.int16)
+        self.height_field_raw = np.zeros((self.width, self.length), dtype=np.int3216)

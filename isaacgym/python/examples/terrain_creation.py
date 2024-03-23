@@ -93,7 +93,7 @@ horizontal_scale = 0.25  # [m]
 vertical_scale = 0.005  # [m]
 num_rows = int(terrain_width/horizontal_scale)
 num_cols = int(terrain_length/horizontal_scale)
-heightfield = np.zeros((num_terains*num_rows, num_cols), dtype=np.int16)
+heightfield = np.zeros((num_terains*num_rows, num_cols), dtype=np.int3216)
 
 
 def new_sub_terrain(): return SubTerrain(width=num_rows, length=num_cols, vertical_scale=vertical_scale, horizontal_scale=horizontal_scale)

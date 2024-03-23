@@ -13,7 +13,6 @@ from rsl_rl.datasets import motion_util
 
 
 class AMPLoader:
-
     POS_SIZE = 3
     ROT_SIZE = 4
     JOINT_POS_SIZE = 12
@@ -55,14 +54,14 @@ class AMPLoader:
             preload_transitions=False,
             num_preload_transitions=1000000,
             motion_files=glob.glob('datasets/motion_files2/*'),
-            ):
+    ):
         """Expert dataset provides AMP observations from Dog mocap dataset.
 
         time_between_frames: Amount of time in seconds between transition.
         """
         self.device = device
         self.time_between_frames = time_between_frames
-        
+
         # Values to store for each trajectory.
         self.trajectories = []
         self.trajectories_full = []
@@ -86,20 +85,20 @@ class AMPLoader:
                     root_rot = pose3d.QuaternionNormalize(root_rot)
                     root_rot = motion_util.standardize_quaternion(root_rot)
                     motion_data[
-                        f_i,
-                        AMPLoader.POS_SIZE:
-                            (AMPLoader.POS_SIZE +
-                             AMPLoader.ROT_SIZE)] = root_rot
-                
+                    f_i,
+                    AMPLoader.POS_SIZE:
+                    (AMPLoader.POS_SIZE +
+                     AMPLoader.ROT_SIZE)] = root_rot
+
                 # Remove first 7 observation dimensions (root_pos and root_orn).
                 self.trajectories.append(torch.tensor(
                     motion_data[
-                        :,
-                        AMPLoader.ROOT_ROT_END_IDX:AMPLoader.JOINT_VEL_END_IDX
+                    :,
+                    AMPLoader.ROOT_ROT_END_IDX:AMPLoader.JOINT_VEL_END_IDX
                     ], dtype=torch.float32, device=device))
                 self.trajectories_full.append(torch.tensor(
-                        motion_data[:, :AMPLoader.JOINT_VEL_END_IDX],
-                        dtype=torch.float32, device=device))
+                    motion_data[:, :AMPLoader.JOINT_VEL_END_IDX],
+                    dtype=torch.float32, device=device))
                 self.trajectory_idxs.append(i)
                 self.trajectory_weights.append(
                     float(motion_json["MotionWeight"]))
@@ -110,7 +109,7 @@ class AMPLoader:
                 self.trajectory_num_frames.append(float(motion_data.shape[0]))
 
             print(f"Loaded {traj_len}s. motion from {motion_file}.")
-        
+
         # Trajectory weights are used to sample some trajectories more than others.
         self.trajectory_weights = np.array(self.trajectory_weights) / np.sum(self.trajectory_weights)
         self.trajectory_frame_durations = np.array(self.trajectory_frame_durations)
@@ -127,7 +126,6 @@ class AMPLoader:
             self.preloaded_s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)
             print(f'Finished preloading')
 
-
         self.all_trajectories_full = torch.vstack(self.trajectories_full)
 
     def reorder_from_pybullet_to_isaac(self, motion_data):
@@ -142,7 +140,7 @@ class AMPLoader:
         jp_fr, jp_fl, jp_rr, jp_rl = np.split(
             AMPLoader.get_joint_pose_batch(motion_data), 4, axis=1)
         joint_pos = np.hstack([jp_fl, jp_fr, jp_rl, jp_rr])
-    
+
         fp_fr, fp_fl, fp_rr, fp_rl = np.split(
             AMPLoader.get_tar_toe_pos_local_batch(motion_data), 4, axis=1)
         foot_pos = np.hstack([fp_fl, fp_fr, fp_rl, fp_rr])
@@ -206,7 +204,7 @@ class AMPLoader:
         """Returns frame for the given trajectory at the specified time."""
         p = times / self.trajectory_lens[traj_idxs]
         n = self.trajectory_num_frames[traj_idxs]
-        idx_low, idx_high = np.floor(p * n).astype(np.int), np.ceil(p * n).astype(np.int)
+        idx_low, idx_high = np.floor(p * n).astype(np.int32), np.ceil(p * n).astype(np.int32)
         all_frame_starts = torch.zeros(len(traj_idxs), self.observation_dim, device=self.device)
         all_frame_ends = torch.zeros(len(traj_idxs), self.observation_dim, device=self.device)
         for traj_idx in set(traj_idxs):
@@ -230,13 +228,15 @@ class AMPLoader:
     def get_full_frame_at_time_batch(self, traj_idxs, times):
         p = times / self.trajectory_lens[traj_idxs]
         n = self.trajectory_num_frames[traj_idxs]
-        idx_low, idx_high = np.floor(p * n).astype(np.int), np.ceil(p * n).astype(np.int)
+        idx_low, idx_high = np.floor(p * n).astype(np.int32), np.ceil(p * n).astype(np.int32)
         all_frame_pos_starts = torch.zeros(len(traj_idxs), AMPLoader.POS_SIZE, device=self.device)
         all_frame_pos_ends = torch.zeros(len(traj_idxs), AMPLoader.POS_SIZE, device=self.device)
         all_frame_rot_starts = torch.zeros(len(traj_idxs), AMPLoader.ROT_SIZE, device=self.device)
         all_frame_rot_ends = torch.zeros(len(traj_idxs), AMPLoader.ROT_SIZE, device=self.device)
-        all_frame_amp_starts = torch.zeros(len(traj_idxs), AMPLoader.JOINT_VEL_END_IDX - AMPLoader.JOINT_POSE_START_IDX, device=self.device)
-        all_frame_amp_ends = torch.zeros(len(traj_idxs),  AMPLoader.JOINT_VEL_END_IDX - AMPLoader.JOINT_POSE_START_IDX, device=self.device)
+        all_frame_amp_starts = torch.zeros(len(traj_idxs), AMPLoader.JOINT_VEL_END_IDX - AMPLoader.JOINT_POSE_START_IDX,
+                                           device=self.device)
+        all_frame_amp_ends = torch.zeros(len(traj_idxs), AMPLoader.JOINT_VEL_END_IDX - AMPLoader.JOINT_POSE_START_IDX,
+                                         device=self.device)
         for traj_idx in set(traj_idxs):
             trajectory = self.trajectories_full[traj_idx]
             traj_mask = traj_idxs == traj_idx
@@ -244,8 +244,10 @@ class AMPLoader:
             all_frame_pos_ends[traj_mask] = AMPLoader.get_root_pos_batch(trajectory[idx_high[traj_mask]])
             all_frame_rot_starts[traj_mask] = AMPLoader.get_root_rot_batch(trajectory[idx_low[traj_mask]])
             all_frame_rot_ends[traj_mask] = AMPLoader.get_root_rot_batch(trajectory[idx_high[traj_mask]])
-            all_frame_amp_starts[traj_mask] = trajectory[idx_low[traj_mask]][:, AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
-            all_frame_amp_ends[traj_mask] = trajectory[idx_high[traj_mask]][:, AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
+            all_frame_amp_starts[traj_mask] = trajectory[idx_low[traj_mask]][:,
+                                              AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
+            all_frame_amp_ends[traj_mask] = trajectory[idx_high[traj_mask]][:,
+                                            AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
         blend = torch.tensor(p * n - idx_low, device=self.device, dtype=torch.float32).unsqueeze(-1)
 
         pos_blend = self.slerp(all_frame_pos_starts, all_frame_pos_ends, blend)
@@ -324,7 +326,8 @@ class AMPLoader:
                 s_next = self.preloaded_s_next[idxs, AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
                 s_next = torch.cat([
                     s_next,
-                    self.preloaded_s_next[idxs, AMPLoader.ROOT_POS_START_IDX + 2:AMPLoader.ROOT_POS_START_IDX + 3]], dim=-1)
+                    self.preloaded_s_next[idxs, AMPLoader.ROOT_POS_START_IDX + 2:AMPLoader.ROOT_POS_START_IDX + 3]],
+                    dim=-1)
             else:
                 s, s_next = [], []
                 traj_idxs = self.weighted_traj_idx_sample_batch(mini_batch_size)
@@ -334,7 +337,7 @@ class AMPLoader:
                     s_next.append(
                         self.get_frame_at_time(
                             traj_idx, frame_time + self.time_between_frames))
-                
+
                 s = torch.vstack(s)
                 s_next = torch.vstack(s_next)
             yield s, s_next
@@ -379,16 +382,16 @@ class AMPLoader:
         return poses[:, AMPLoader.LINEAR_VEL_START_IDX:AMPLoader.LINEAR_VEL_END_IDX]
 
     def get_angular_vel(pose):
-        return pose[AMPLoader.ANGULAR_VEL_START_IDX:AMPLoader.ANGULAR_VEL_END_IDX]  
+        return pose[AMPLoader.ANGULAR_VEL_START_IDX:AMPLoader.ANGULAR_VEL_END_IDX]
 
     def get_angular_vel_batch(poses):
-        return poses[:, AMPLoader.ANGULAR_VEL_START_IDX:AMPLoader.ANGULAR_VEL_END_IDX]  
+        return poses[:, AMPLoader.ANGULAR_VEL_START_IDX:AMPLoader.ANGULAR_VEL_END_IDX]
 
     def get_joint_vel(pose):
         return pose[AMPLoader.JOINT_VEL_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
 
     def get_joint_vel_batch(poses):
-        return poses[:, AMPLoader.JOINT_VEL_START_IDX:AMPLoader.JOINT_VEL_END_IDX]  
+        return poses[:, AMPLoader.JOINT_VEL_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
 
     def get_tar_toe_vel_local(pose):
         return pose[AMPLoader.TAR_TOE_VEL_LOCAL_START_IDX:AMPLoader.TAR_TOE_VEL_LOCAL_END_IDX]
