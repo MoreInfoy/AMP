@@ -319,6 +319,7 @@ class AMPLoader:
             if self.preload_transitions:
                 idxs = np.random.choice(
                     self.preloaded_s.shape[0], size=mini_batch_size)
+                scale = 3.0 * torch.rand(self.preloaded_s.shape[0], device=self.device) + 0.3
                 s = self.preloaded_s[idxs, AMPLoader.JOINT_POSE_START_IDX:AMPLoader.JOINT_VEL_END_IDX]
                 s = torch.cat([
                     s,
